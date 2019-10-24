@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
    sem_init(&sem_client,0,0);
    sem_init(&sem_barber,0,0);
    pthread_create(&barberid, NULL, barber, NULL);
-   printf("Creating barber thread with id %lu\n",barberid);
+   std::cout << "Creating barber thread with id: " << barberid << std::endl;
    while(1){
 	   pthread_create(&clientid, NULL, client, NULL);
 	   sleep(rand()%8 + 1);
@@ -38,10 +38,10 @@ void *barber(void *param) {
 	  sem_wait(&sem_chairs);
 	  chairs += 1;
 	  sem_post(&sem_chairs);
-	  printf("Barber: Started cutting...\nChairs availiable:%d\n", chairs);
+	  std::cout << "Barber: started cutting..." << std::endl << "Chairs availiable: " << chairs << std::endl;
 	  sem_post(&sem_barber);
 	  worktime = rand() % 5 + 3;
-	  printf("Barber: Cutting hair for %d seconds\n", worktime);
+	  std::cout << "Barber: working for " << worktime << "seconds" << std::endl;
 	  sleep(worktime); // 3 - 7 sec
     } 
 }
@@ -53,20 +53,20 @@ void *client(void *param) {
 	  sem_wait(&sem_chairs);
 	  if(chairs <= 0){
 		   sem_post(&sem_chairs);
-		   printf("Client: Client %u leaving\n", (unsigned int)pthread_self());
+		   std::cout << "Client: leaving" << std::endl;
 		   return param;
 	  }
 	  else{
 		   chairs -= 1;
 		   sem_post(&sem_chairs);
-		   printf("Client: Client %u waiting. Empty chairs: %d\n",(unsigned int)pthread_self(),chairs);
+		   std::cout << "Client: " << (unsigned int)pthread_self() << " waiting,,, chairs: " << chairs << std::endl;
 		   sem_post(&sem_client);
 		   sem_wait(&sem_barber);
-		   printf("Client: Thread %u getting a haircut\n",(unsigned int)pthread_self());
+		   std::cout << "Client: " << (unsigned int)pthread_self() << "getting a haircut" << std::endl;
 		   return param;
 	  }
 	  waittime = (rand() % clientWait) + 1;
-	  printf("Client: Thread %u waiting %d seconds before attempting next haircut\n",(unsigned int)pthread_self(),waittime);
+	  std::cout << "Client: " << (unsigned int)pthread_self() << " waiting for " << waittime << " seconds" << std::endl;
 	  sleep(waittime);
      }
 }
