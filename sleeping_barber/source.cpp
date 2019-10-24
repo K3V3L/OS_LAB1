@@ -62,7 +62,7 @@ void *client(void *param) {
 		   std::cout << "Client: " << (unsigned int)pthread_self() << " waiting,,, chairs: " << chairs << std::endl;
 		   sem_post(&sem_client);
 		   sem_wait(&sem_barber);
-		   std::cout << "Client: " << (unsigned int)pthread_self() << "getting a haircut" << std::endl;
+		   std::cout << "Client: " << (unsigned int)pthread_self() << " getting a haircut" << std::endl;
 		   return param;
 	  }
 	  waittime = (rand() % clientWait) + 1;
