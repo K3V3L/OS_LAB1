@@ -41,7 +41,7 @@ void *barber(void *param) {
 	  std::cout << "Barber: started cutting..." << std::endl << "Chairs availiable: " << chairs << std::endl;
 	  sem_post(&sem_barber);
 	  worktime = rand() % 5 + 3;
-	  std::cout << "Barber: working for " << worktime << "seconds" << std::endl;
+	  std::cout << "Barber: working for " << worktime << " seconds" << std::endl;
 	  sleep(worktime); // 3 - 7 sec
     } 
 }
