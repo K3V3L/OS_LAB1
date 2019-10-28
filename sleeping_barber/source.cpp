@@ -32,15 +32,17 @@ int main(int argc, char *argv[]) {
 
 void *barber(void *param) {
    int worktime;
-  
+
    while(1) {
 	  sem_wait(&sem_client);
 	  sem_wait(&sem_chairs);
 	  chairs += 1;
 	  sem_post(&sem_chairs);
+	  std::cout << "\e[01;34m";
 	  std::cout << "Barber: started cutting..." << std::endl << "Chairs availiable: " << chairs << std::endl;
 	  sem_post(&sem_barber);
 	  worktime = rand() % 5 + 3;
+	  std::cout << "\e[01;34m";
 	  std::cout << "Barber: working for " << worktime << " seconds" << std::endl;
 	  sleep(worktime); // 3 - 7 sec
     } 
@@ -48,25 +50,28 @@ void *barber(void *param) {
 
 void *client(void *param) {
    int waittime;
-
    while(1) {
 	  sem_wait(&sem_chairs);
 	  if(chairs <= 0){
 		   sem_post(&sem_chairs);
+		   std::cout << "\e[01;32m";
 		   std::cout << "Client: leaving" << std::endl;
 		   return param;
 	  }
 	  else{
 		   chairs -= 1;
 		   sem_post(&sem_chairs);
-		   std::cout << "Client: " << (unsigned int)pthread_self() << " waiting,,, chairs: " << chairs << std::endl;
+		   std::cout << "\e[01;32m";
+		   std::cout << "Client: " << (unsigned int)pthread_self() << " waiting... chairs: " << chairs << std::endl;
 		   sem_post(&sem_client);
 		   sem_wait(&sem_barber);
+		   std::cout << "\e[01;32m";
 		   std::cout << "Client: " << (unsigned int)pthread_self() << " getting a haircut" << std::endl;
 		   return param;
 	  }
 	  waittime = (rand() % clientWait) + 1;
 	  std::cout << "Client: " << (unsigned int)pthread_self() << " waiting for " << waittime << " seconds" << std::endl;
+	  std::cout << "\e[01;32m";
 	  sleep(waittime);
      }
 }
