@@ -1,102 +1,110 @@
-// Copyright 2019 koval
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// 
-//     http://www.apache.org/licenses/LICENSE-2.0
-// 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+#include<stdio.h>
+#include<pthread.h>
+#include<stdlib.h>
+#include<unistd.h>
 #define N 5
-#define RIGHT_SPOON (int)i
-#define LEFT_SPOON ((int)i+1)%N
-#include <pthread.h> 
-#include <stdio.h> 
-#include <unistd.h> 
-#include <iostream>
-// Declaration of thread condition variable 
-pthread_cond_t condSpoon[5] = {PTHREAD_COND_INITIALIZER, 
-							PTHREAD_COND_INITIALIZER, 
-							PTHREAD_COND_INITIALIZER, 
-							PTHREAD_COND_INITIALIZER, 
-							PTHREAD_COND_INITIALIZER};
-pthread_cond_t condScreen = PTHREAD_COND_INITIALIZER;
 
-// declaring mutex 
-pthread_mutex_t MEtable = PTHREAD_MUTEX_INITIALIZER; 
-pthread_mutex_t MEscreen = PTHREAD_MUTEX_INITIALIZER;
-int done = 1; 
+enum { thinking, hungry, eating } state [ 5 ];					// philospher states
+pthread_mutex_t lock;								// mutex for accessing philospher states to avoid deadlock
+pthread_cond_t self [ 5 ];							// condition variable for accessing 
+pthread_t philo [ 5 ];
+int identity [ 5 ] = { 0, 1, 2, 3, 4 };
+int eat_count = 0;
 
-// Thread function 
-void* phil(void * j) 
-{
-	int i = *((int *) j);
-	pthread_mutex_lock(&MEscreen);
-	std::cout << "Pthread " << (unsigned int)pthread_self() << " is number " << i << std::endl;
-	pthread_mutex_unlock(&MEscreen);
-	int eatTime;
+
+void *phil_run ( void *arg );
+void *pickup_forks ( int );
+void *return_forks ( int );
+void *test ( int );
+
+int main ( )
+{	
+	pthread_mutex_init ( &lock, NULL );
+	int i = 0;
+	for ( i = 0; i < N; i++ )						// intialization
+	{
+		state [ i ] = thinking;
+		pthread_cond_init ( &self [ i ], NULL );
+	}
+	for ( i = 0; i < N; i++ )
+	{
+		pthread_create ( &philo [ i ], NULL, phil_run, &identity [i]);	// creating threads with default attributes and their number as
+	}
+	pthread_join ( philo[0], NULL );						
+	return 0;
+}
+
+void *phil_run ( void *arg )
+{	
+	int id = *((int*)arg);
+	printf ("Philospher %d started working \n",id + 1);
 	while (1)
 	{
-		pthread_mutex_lock(&MEscreen);
-		std::cout << (unsigned int)pthread_self() << " waiting for left spoon " << LEFT_SPOON << std::endl;
-		pthread_mutex_unlock(&MEscreen);
-
-
-		pthread_mutex_lock(&MEtable);
-		pthread_cond_wait(&(condSpoon[LEFT_SPOON]), &MEtable);
-
-
-
-		pthread_mutex_lock(&MEscreen);
-		std::cout << (unsigned int)pthread_self() << " got left spoon "  << LEFT_SPOON << std::endl;
-		pthread_mutex_unlock(&MEscreen);
-
-		pthread_mutex_lock(&MEscreen);
-		std::cout << (unsigned int)pthread_self() << " waiting for right spoon " << RIGHT_SPOON << std::endl;
-		pthread_mutex_unlock(&MEscreen);
-
-		pthread_mutex_lock(&MEtable);
-		pthread_cond_wait(&(condSpoon[RIGHT_SPOON]), &MEtable);
-
-
-		pthread_mutex_lock(&MEscreen);
-		std::cout << (unsigned int)pthread_self() << " got right spoon " << RIGHT_SPOON << std::endl;
-		pthread_mutex_unlock(&MEscreen);
-
+		printf ( "# Eating count = %d \n", eat_count );
 		
-		eatTime = rand()%8 + 3;
-		pthread_mutex_lock(&MEscreen);
-		std::cout << (unsigned int)pthread_self() << " Started eating for "  << eatTime << "Seconds" << std::endl;
-		pthread_mutex_unlock(&MEscreen);
-		sleep(eatTime);
-		pthread_cond_signal(&(condSpoon[LEFT_SPOON])); 
-		pthread_cond_signal(&(condSpoon[RIGHT_SPOON]));
-	}
-} 
+		int rand_time = ( rand())%2 + 1;							// random thinking time
+		printf ( "Philospher %d is Thinking for %d seconds. \n", id + 1 , rand_time );
+		//float rnd_time = ((float)rand_time) / 1000.0;
+		sleep ( rand_time );
+		pickup_forks ( id );									// picking forks
+		int rnd_time = ( rand())%2 + 1;								// random eating time
+		printf ( "Philospher %d eating for %d seconds. \n", id + 1, rnd_time );
+		sleep ( rnd_time );
+		return_forks ( id );									// returning forks
+		eat_count++;
+	}	
+	return NULL;
+}
 
-int main() 
-{ 
-	pthread_t phils[N];
-
-	// Create thread 1 
-	for (size_t i = 0; i < N; i++)
+void *pickup_forks ( int id )
+{
+	pthread_mutex_lock ( &lock );						// lock to access states
+	state [ id ] = hungry;
+	pthread_mutex_unlock ( &lock );
+	test ( id );								 
+	pthread_mutex_lock ( &lock );
+	if ( state [ id ] != eating )
 	{
-		int* arg = new int;
-		*arg = i;
-		pthread_create(&(phils[i]), NULL, phil, arg);
+		pthread_cond_wait ( &self [ id ], &lock );			// condition wait if forks not available
 	}
-	sleep(5);
-	pthread_cond_broadcast(&condSpoon[0]);
-	sleep(1);
-	pthread_cond_broadcast(&condSpoon[1]);
-	sleep(1);
-	pthread_cond_broadcast(&condSpoon[3]);
-	sleep(1);
-	pthread_cond_broadcast(&condSpoon[4]);
-	sleep(9000);
-	return 0; 
-} 
+	pthread_mutex_unlock ( &lock );
+	return NULL;
+}
+
+void *return_forks ( int id )
+{
+	pthread_mutex_lock ( &lock );						
+	state [ id ] = thinking;
+	pthread_mutex_unlock ( &lock );
+	test ( ( id + N - 1 ) % N );					// call to check for other philosphers to avoid starvation
+	test ( ( id + 1 ) % N );
+}
+
+/* function to allocate forks and avoid deadlocks */
+
+void *test ( int id )
+{
+	int num1 = ( id + N -1 ) % N;
+	int num2 = ( id + 1 ) % N;
+	if ( id % 2 == 0 )
+	{
+
+		pthread_mutex_lock( &lock );
+		if ( (state[num1] != eating) && (state[num2] != eating) && (state[id] == hungry) )
+		{
+			state[ id ] = eating;
+			pthread_cond_signal ( &self [ id ] );
+		}
+		pthread_mutex_unlock( &lock );
+	}
+	else
+	{
+		pthread_mutex_lock( &lock );
+		if ( (state[num1] != eating) && (state[num2] != eating) && (state[id] == hungry) )
+		{
+			state[ id ] = eating;
+			pthread_cond_signal ( &self [ id ] );
+		}
+		pthread_mutex_unlock( &lock );
+	}
+}
